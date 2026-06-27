@@ -11,11 +11,11 @@ import (
 )
 
 type PostgresUserRepo struct {
-	db* pgxpool.Pool
+	db *pgxpool.Pool
 }
 
-func NewPostresUserRepo (db *pgxpool.Pool) *PostgresUserRepo {
-	return &PostgresUserRepo{db : db}
+func Create(db *pgxpool.Pool) *PostgresUserRepo {
+	return &PostgresUserRepo{db: db}
 }
 
 func (r *PostgresUserRepo) CreateNewUserDB(ctx context.Context, user *domain.User) error {
@@ -26,30 +26,30 @@ func (r *PostgresUserRepo) CreateNewUserDB(ctx context.Context, user *domain.Use
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return domain.DBErrorUserAlreadyExists
 		}
-		return fmt.Errorf("postgres error: Ошибка при добавление нового пользователя в базу: %v",err)
+		return fmt.Errorf("postgres error: Ошибка при добавление нового пользователя в базу: %v", err)
 	}
 	return nil
 
 }
 
-func (r *PostgresUserRepo)CheckCredsUserDB(ctx context.Context, creds *domain.Credentials) error {
+func (r *PostgresUserRepo) CheckCredsUserDB(ctx context.Context, creds *domain.Credentials) error {
 	query := `SELECT EXISTS (SELECT 1 FROM users WHERE user_name = $1 AND password = $2)`
 	var exists bool
-	err := r.db.QueryRow(ctx,query,creds.UserName,creds.Password).Scan(&exists)
+	err := r.db.QueryRow(ctx, query, creds.UserName, creds.Password).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("postgres error: Ошибка при проверке кредов: %v",err)
+		return fmt.Errorf("postgres error: Ошибка при проверке кредов: %v", err)
 	}
 	if !exists {
-		return nil
+		return domain.DBErrorInvalidCreds
 	}
-	return domain.DBErrorInvalidCreds
+	return nil
 }
 
-func (r *PostgresUserRepo)DeleteUserFromDB(ctx context.Context, user *domain.User) error {
+func (r *PostgresUserRepo) DeleteUserFromDB(ctx context.Context, user *domain.User) error {
 	query := `DELETE FROM users WHERE user_name = $1 AND email = $2 AND password = $3`
-	res,err := r.db.Exec(ctx,query,user.UserName,user.Email,user.Password)
+	res, err := r.db.Exec(ctx, query, user.UserName, user.Email, user.Password)
 	if err != nil {
-		return fmt.Errorf("postgres error: Ошибка при удаление пользователя: %v",err)
+		return fmt.Errorf("postgres error: Ошибка при удаление пользователя: %v", err)
 	}
 	if res.RowsAffected() == 0 {
 		return domain.DBErrorUserNotFound
