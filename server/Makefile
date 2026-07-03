@@ -31,3 +31,9 @@ migrate-down:
 migrate-force:
 	@read -p "Введите версию: " version ;\
 	$(MIGRATE_CMD) force $$version
+
+back-build:
+	go build -o $(shell pwd)/bin/main $(shell pwd)/cmd/ci_cd/main.go  
+
+back-up:
+	
