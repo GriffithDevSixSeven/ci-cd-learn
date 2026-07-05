@@ -25,6 +25,20 @@ services:
       - postgres-service
     networks:
       - ci_cd_net
+  
+  backend-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres-service
+    environment:
+      - DB_URL=postgres://postgres:1234@postgres-service:5432/ci_cd_learn?sslmode=disable&options=-c%20search_path=users_schema
+    networks:
+      - ci_cd_net
 
 networks:
   ci_cd_net:
