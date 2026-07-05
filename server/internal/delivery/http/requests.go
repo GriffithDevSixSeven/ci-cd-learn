@@ -7,18 +7,18 @@ type User struct {
 }
 
 type CreateUserRequest struct {
-	UserName string `json:"user_name" validate:"required,max=40"`
+	UserName string `json:"UserName" validate:"required,max=40"`
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,max=100"`
 }
 
 type LoginUserRequest struct {
-	UserName string `json:"user_name" validate:"required,max=40"`
+	UserName string `json:"UserName" validate:"required,max=40"`
 	Password string `json:"password" validate:"required,max=100"`
 }
 
 type DeleteUserRequest struct {
-	UserName string `json:"user_name" validate:"required,max=40"`
+	UserName string `json:"UserName" validate:"required,max=40"`
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,max=100"`
 }
