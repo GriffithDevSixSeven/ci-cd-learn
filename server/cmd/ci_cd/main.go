@@ -2,53 +2,75 @@ package main
 
 import (
 	"ci_cd/configs"
-	"ci_cd/internal/domain"
+	"ci_cd/internal/delivery/http"
 	"ci_cd/internal/repository/postgres"
+	"ci_cd/internal/service"
 	"context"
+	"fmt"
 	"log"
+	netHttp "net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	dbUrl := configs.GetDBUrl()
-	ctx, cannel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cannel()
-	pool, err := pgxpool.New(ctx, dbUrl)
+	ctx,stop := signal.NotifyContext(context.Background(),os.Interrupt,syscall.SIGTERM)
+	defer stop()
+	dbPool,err := pgxpool.New(ctx,configs.GetDBUrl())
 	if err != nil {
-		log.Fatalf("pool conn: Не удалось подключиться к базе: %v", err)
+		log.Fatalf("pool err: Не удалось подключиться к базе: %v",err)
+	}
+	defer dbPool.Close()
+	if err := dbPool.Ping(ctx); err != nil {
+		log.Fatalf("pool ping err: База данных не работает:2 %v",err)
+	}
+	log.Println("pool: Успешное подключение!")
+	validate := validator.New()
+	userRepo := postgres.Create(dbPool)
+	userService := service.NewUserService(userRepo)
+	userHanlder := http.NewUserHandler(userService,validate)
+	router := gin.Default()
 
+		api := router.Group("/api/v1")
+	{
+		api.POST("/auth/register", userHanlder.RegisterUserHandler)
+		api.POST("/auth/login", userHanlder.LoginUserHandler)
+		api.DELETE("/auth/delete_user", userHanlder.DeleteUserHandler)
 	}
-	defer pool.Close()
-	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("pool ping: Не удалось сделать пинг: %v", err)
-	}
-	log.Println("pool conn: Успешное подключение!")
-	userRepo := postgres.Create(pool)
-	testCreateUser := domain.User{
-		UserName: "testName",
-		Email:    "testMail",
-		Password: "testPassword"}
-	log.Println("Попытка добавления данных...")
-	err = userRepo.CreateNewUserDB(ctx, &testCreateUser)
-	log.Println(err)
-	log.Println("Попытка проверки кредов...")
 
-	secondUser := domain.User{
-		UserName: "Ivan",
-		Email:    "67",
-		Password: "123",
+
+	srv := &netHttp.Server{
+		Addr:    fmt.Sprintf(":%d",configs.GetConfig().Server.Port), 
+		Handler: router,
 	}
-	_ = userRepo.CreateNewUserDB(ctx, &secondUser)
-	creds := domain.Credentials{
-		UserName: "Ivan",
-		Password: "123",
+
+
+	log.Println("Запускаю http!")
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != netHttp.ErrServerClosed {
+			log.Fatalf("http error: Ошибка при запуске сервера: %v", err)
+		}
+	}()
+
+
+	<-ctx.Done()
+	log.Println("Получен сигнал остановки, завершаю работу...")
+
+	
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Ошибка при плавной остановке сервера: %v", err)
 	}
-	err = userRepo.CheckCredsUserDB(ctx, &creds)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Println("Проверка кредов успешная!")
+
+	log.Println("Сервер успешно остановлен. Закрываю пул БД...")
 
 }
+

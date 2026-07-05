@@ -31,3 +31,4 @@ migrate-down:
 migrate-force:
 	@read -p "Введите версию: " version ;\
 	$(MIGRATE_CMD) force $$version
+
