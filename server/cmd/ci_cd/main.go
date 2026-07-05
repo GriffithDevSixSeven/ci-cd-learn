@@ -20,36 +20,34 @@ import (
 )
 
 func main() {
-	ctx,stop := signal.NotifyContext(context.Background(),os.Interrupt,syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	dbPool,err := pgxpool.New(ctx,configs.GetDBUrl())
+	dbPool, err := pgxpool.New(ctx, configs.GetDBUrl())
 	if err != nil {
-		log.Fatalf("pool err: Не удалось подключиться к базе: %v",err)
+		log.Fatalf("pool err: Не удалось подключиться к базе: %v", err)
 	}
 	defer dbPool.Close()
 	if err := dbPool.Ping(ctx); err != nil {
-		log.Fatalf("pool ping err: База данных не работает:2 %v",err)
+		log.Fatalf("pool ping err: База данных не работает:2 %v", err)
 	}
 	log.Println("pool: Успешное подключение!")
 	validate := validator.New()
 	userRepo := postgres.Create(dbPool)
 	userService := service.NewUserService(userRepo)
-	userHanlder := http.NewUserHandler(userService,validate)
+	userHanlder := http.NewUserHandler(userService, validate)
 	router := gin.Default()
 
-		api := router.Group("/api/v1")
+	api := router.Group("/api/v1")
 	{
 		api.POST("/auth/register", userHanlder.RegisterUserHandler)
 		api.POST("/auth/login", userHanlder.LoginUserHandler)
 		api.DELETE("/auth/delete_user", userHanlder.DeleteUserHandler)
 	}
 
-
 	srv := &netHttp.Server{
-		Addr:    fmt.Sprintf(":%d",configs.GetConfig().Server.Port), 
+		Addr:    fmt.Sprintf(":%d", configs.GetConfig().Server.Port),
 		Handler: router,
 	}
-
 
 	log.Println("Запускаю http!")
 	go func() {
@@ -58,11 +56,9 @@ func main() {
 		}
 	}()
 
-
 	<-ctx.Done()
 	log.Println("Получен сигнал остановки, завершаю работу...")
 
-	
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -73,4 +69,3 @@ func main() {
 	log.Println("Сервер успешно остановлен. Закрываю пул БД...")
 
 }
-
