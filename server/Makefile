@@ -32,3 +32,17 @@ migrate-force:
 	@read -p "Введите версию: " version ;\
 	$(MIGRATE_CMD) force $$version
 
+backend-up:
+	@docker compose up --build  backend-service
+
+backend-down:
+	@docker compose down backend-service
+
+all-up:
+	@make db-up
+	@make backend-up
+
+all-down:
+	@make db-down
+	@make backend-down
+	

@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -36,6 +37,17 @@ func main() {
 	userService := service.NewUserService(userRepo)
 	userHanlder := http.NewUserHandler(userService, validate)
 	router := gin.Default()
+	router.Use(cors.New(cors.Config{
+    AllowOrigins:     []string{"https://example.com", "http://localhost:5173"},
+    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+    ExposeHeaders:    []string{"Content-Length"},
+    AllowCredentials: true,
+    AllowOriginFunc: func(origin string) bool {
+        return origin == "https://github.com"
+    },
+}))
+
 
 	api := router.Group("/api/v1")
 	{
